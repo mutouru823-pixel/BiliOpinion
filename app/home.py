@@ -404,13 +404,13 @@ def sidebar() -> None:
             choice = st.selectbox("选择项目", options=options, index=idx,
                                     label_visibility="collapsed")
         with col2:
-            if st.button("↻", help="刷新项目列表", use_container_width=True):
+            if st.button("↻", help="刷新项目列表", width='stretch'):
                 st.rerun()
 
         if choice == "➕ 新建项目…":
             new_name = st.text_input("项目名 (英文/拼音)", key="new_project_name",
                                        placeholder="my_event", label_visibility="collapsed")
-            if new_name and st.button("创建项目", type="primary", use_container_width=True):
+            if new_name and st.button("创建项目", type="primary", width='stretch'):
                 from app.config_ui import default_config, save_config
                 cfg = default_config()
                 cfg["project"]["name"] = new_name
@@ -449,16 +449,22 @@ def sidebar() -> None:
 
         st.markdown("")
         _sidebar_group("🔑 B 站 Cookie")
-        st.caption("用于 Step0 采集。留空则用 `.env` 的 `BILI_COOKIE`。")
+        st.caption("用于 Step0 采集。留空则回落到 `.env` 的 `BILI_COOKIE`。")
+        # 只传 key、不传 value：同时传会与 session_state 冲突并触发 Streamlit 警告
         cookie = st.text_input(
             "Cookie", type="password",
-            value=st.session_state.get("cookie_input", ""),
             key="cookie_input",
             label_visibility="collapsed",
             placeholder="粘贴整段 Cookie…")
         st.session_state["bili_cookie"] = cookie
-        if st.button("记住到 .env", use_container_width=True):
+        if st.button("记住到 .env", width='stretch'):
             _save_dotenv(cookie)
+        if not cookie:
+            env_cookie = _env_cookie()
+            if env_cookie:
+                st.caption(f"✅ 已从 .env 读到 Cookie（{len(env_cookie)} 字符）")
+            else:
+                st.caption("⚠️ 未检测到 Cookie，Step0 采集会失败")
 
         st.markdown("")
         from app.paths import writable_base as _wb
@@ -485,6 +491,30 @@ def _sidebar_kv(key: str, val: str) -> None:
         f"max-width:65%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'>{val}</span>"
         f"</div>",
         unsafe_allow_html=True)
+
+
+def _env_cookie() -> str:
+    """读取当前可用的 BILI_COOKIE（环境变量 > .env > Streamlit Secrets）。"""
+    import os
+    val = os.environ.get("BILI_COOKIE", "").strip()
+    if val:
+        return val
+    try:
+        from app.paths import writable_base
+        for base in {writable_base(), REPO_ROOT}:
+            env_file = base / ".env"
+            if not env_file.exists():
+                continue
+            for line in env_file.read_text(encoding="utf-8", errors="ignore").splitlines():
+                line = line.strip()
+                if line.startswith("BILI_COOKIE=") and "=" in line:
+                    return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        pass
+    try:
+        return str(st.secrets.get("BILI_COOKIE", "")).strip()
+    except Exception:
+        return ""
 
 
 def _save_dotenv(cookie: str) -> None:
@@ -624,7 +654,7 @@ def _tab_config(project_name: str) -> None:
 
     col1, col2, col3 = st.columns([1.1, 1.1, 3], gap="small")
     with col1:
-        if st.button("💾 保存配置", type="primary", use_container_width=True):
+        if st.button("💾 保存配置", type="primary", width='stretch'):
             try:
                 from biliopinion.config import load_config
                 import tempfile, yaml
@@ -643,7 +673,7 @@ def _tab_config(project_name: str) -> None:
             data=config_ui.dict_to_yaml(cfg).encode("utf-8"),
             file_name=f"{project_name}_config.yaml",
             mime="application/x-yaml",
-            use_container_width=True,
+            width='stretch',
         )
     with col3:
         # 展示保存位置
@@ -663,6 +693,27 @@ def _tab_run(project_name: str) -> None:
         st.warning("尚未保存配置。请先到「配置」Tab 保存。")
         return
 
+    cookie = st.session_state.get("bili_cookie", "")
+    has_running = any(
+        s.get("status") == "running"
+        for s in state.all_step_states(project_name).values()
+    )
+
+    # 有 step 在跑时，整块面板每 3 秒自动重绘一次，状态与日志自己会动；
+    # 空闲时不轮询，避免无谓的重跑开销。
+    if has_running:
+        _run_panel_live(project_name, cookie)
+    else:
+        _run_panel(project_name, cookie)
+
+
+@st.fragment(run_every=3)
+def _run_panel_live(project_name: str, cookie: str) -> None:
+    _run_panel(project_name, cookie, live=True)
+
+
+def _run_panel(project_name: str, cookie: str, live: bool = False) -> None:
+    """运行面板：KPI + 操作条 + step 列表。"""
     # KPI 条（Linear 式：4 个数值点）
     states = state.all_step_states(project_name)
     done = sum(1 for s in states.values() if s.get("status") == "done")
@@ -685,16 +736,23 @@ def _tab_run(project_name: str) -> None:
         unsafe_allow_html=True)
 
     # 操作条
-    cookie = st.session_state.get("bili_cookie", "")
-    c_run, c_refresh, _ = st.columns([1, 1, 3], gap="small")
+    c_run, c_refresh, c_note = st.columns([1, 1, 3], gap="small")
     with c_run:
         if st.button("▶ 运行到下一步", help="启动第一个 pending/error 且依赖满足的 step",
-                      type="primary", use_container_width=True):
+                      type="primary", width='stretch'):
             _run_next_pending(project_name, cookie)
     with c_refresh:
         if st.button("↻ 刷新状态", help="重新读取所有 step 状态文件",
-                      use_container_width=True):
+                      width='stretch'):
             st.rerun()
+    with c_note:
+        if live:
+            st.markdown(
+                "<div style='display:flex;align-items:center;gap:7px;height:38px;"
+                "font-size:12px;color:var(--bop-text-muted);'>"
+                "<span style='width:6px;height:6px;border-radius:50%;background:#2563EB;'></span>"
+                "实时刷新中 · 每 3 秒自动更新状态与日志</div>",
+                unsafe_allow_html=True)
 
     st.markdown("")
 
@@ -751,8 +809,8 @@ def _run_next_pending(project_name: str, cookie: str) -> None:
             if state.can_run(project_name, key):
                 try:
                     pid = runner.run_step_in_background(project_name, key, cookie=cookie)
-                    st.success(f"已启动 {step['name']}（pid={pid}）", icon="🚀")
-                    return
+                    st.toast(f"已启动 {step['name']}（pid={pid}）", icon="🚀")
+                    st.rerun()
                 except Exception as e:
                     st.error(f"启动 {step['name']} 失败：{e}", icon="🚨")
                     return
@@ -794,7 +852,7 @@ def _tab_projects() -> None:
             "有效评论": s["valid_comments"] or 0,
             "报告": "✅" if s["has_report"] else "—",
         })
-    st.dataframe(rows, use_container_width=True, hide_index=True, column_config={
+    st.dataframe(rows, width='stretch', hide_index=True, column_config={
         "项目": st.column_config.TextColumn(width="small"),
         "主题": st.column_config.TextColumn(width="large"),
         "进度": st.column_config.TextColumn(width="small"),
@@ -811,11 +869,11 @@ def _tab_projects() -> None:
     with c_sel:
         selected = st.selectbox("项目", options=projects, label_visibility="collapsed")
     with c_switch:
-        if st.button("↔ 切换", help="切换到这个项目", use_container_width=True):
+        if st.button("↔ 切换", help="切换到这个项目", width='stretch'):
             state.set_current_project(selected)
             st.rerun()
     with c_del:
-        if st.button("🗑️ 删除", help="删除整个项目（不可逆）", use_container_width=True):
+        if st.button("🗑️ 删除", help="删除整个项目（不可逆）", width='stretch'):
             if st.session_state.get(f"confirm_delete_{selected}", False):
                 state.delete_project(selected)
                 st.success(f"已删除 {selected}", icon="✅")

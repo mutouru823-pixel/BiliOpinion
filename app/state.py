@@ -90,10 +90,49 @@ def read_step_state(name: str, step_key: str) -> dict[str, Any]:
         return {"status": "pending", "started_at": None, "finished_at": None,
                 "error": None, "pid": None}
     try:
-        return json.loads(f.read_text(encoding="utf-8"))
+        data = json.loads(f.read_text(encoding="utf-8"))
     except Exception:
         return {"status": "pending", "started_at": None, "finished_at": None,
                 "error": None, "pid": None}
+    return _reconcile(name, step_key, data)
+
+
+# 进程刚启动时 pid 可能还没来得及注册，给一段宽限期再判定为僵尸
+_STALE_GRACE_SEC = 20
+
+
+def _reconcile(name: str, step_key: str, data: dict[str, Any]) -> dict[str, Any]:
+    """状态对账：标着 running 但进程已经不在了，就改判为失败。
+
+    没有这一步，子进程被强杀 / 机器断电后状态会永远停在 running，
+    UI 上运行与重跑按钮全被禁用，该 step 再也起不来。
+    """
+    if data.get("status") != "running":
+        return data
+    started = data.get("started_at") or 0
+    try:
+        if time.time() - float(started) < _STALE_GRACE_SEC:
+            return data
+    except Exception:
+        pass
+    pid = data.get("pid")
+    try:
+        from app.runner import pid_alive
+    except Exception:
+        return data
+    if pid_alive(pid):
+        return data
+    data = dict(data)
+    data["status"] = "error"
+    data["finished_at"] = data.get("finished_at") or time.time()
+    data["error"] = (data.get("error")
+                     or "进程已退出但未回写结果（可能被强制终止、内存不足或系统重启）。可直接重跑。")
+    data["stale"] = True
+    try:
+        write_step_state(name, step_key, data)
+    except Exception:
+        pass
+    return data
 
 
 def write_step_state(name: str, step_key: str, data: dict[str, Any]) -> None:

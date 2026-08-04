@@ -10,12 +10,15 @@ wordcloud>=1.8
 snownlp>=0.12
 pyyaml>=6.0
 
+# Web 前端（python run_app.py / streamlit run app/home.py）
+# 需要 >=1.49：用到了 st.fragment(run_every=) 自动刷新与 width= 参数
+streamlit>=1.49
+# 进程探活（缺失时自动回退到 Win32 API / signal 0，非强依赖）
+psutil>=5.9
+
 # 可选：BERT 深度分析（cfg.bert.enabled=True 时才需要，体积较大）
 # torch>=2.1
 # transformers>=4.35
 
 # 可选：导出 docx 报告（cfg.report.docx=True 时才需要）
 # python-docx>=1.1
-
-# 可选：Streamlit 前端（python run_app.py 或 streamlit run app/app.py）
-streamlit>=1.30

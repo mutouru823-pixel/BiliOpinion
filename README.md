@@ -69,6 +69,28 @@ python run.py config.yaml
 - `effective_config.yaml` —— 本次实际生效的完整配置（保证可复现）
 - `raw/` —— 原始抓取数据（断点续爬用）
 
+### 4. 启动 Web 界面（推荐）
+
+不想敲命令行？`run_app.py` 会启动一个 Streamlit 可视化界面，把「建项目 → 填配置 → 跑步骤 → 看报告」全部搬到浏览器里，后台进程脱离终端运行、自动刷新进度、卡死自动恢复。
+
+```bash
+python run_app.py                 # 默认 8501 端口，自动打开浏览器
+python run_app.py --port 8600     # 指定端口
+python run_app.py --headless      # 服务器/远程环境，不自动开浏览器
+# 等价于：streamlit run app/home.py
+```
+
+界面含四个标签页：
+
+| 标签页 | 功能 |
+|--------|------|
+| **配置** | 浏览器内编辑 `config.yaml`（增减步骤、切换 auto/manual、填主题与 Cookie）；Cookie 支持输入框填入，也能直接读仓库根 `.env` 的 `BILI_COOKIE` 或 Streamlit Secrets（检测到时会提示） |
+| **运行** | 九步管线逐卡展示：依赖未满足时锁定按钮并提示「需先完成：xxx」；运行中显示「■ 停止」可终止子进程；有步骤在跑时面板每 3 秒自动轮询刷新，空闲时手动触发。后台子进程在 Windows 上以脱离终端方式启动，**崩溃不会连带关闭主界面** |
+| **报告** | 内嵌查看 `report.html` 与全部 `figures/` 图表，支持单图放大 |
+| **项目** | 新建 / 切换项目，管理 `outputs/` 下各项目产物 |
+
+> **卡死自愈**：若某步骤标记为 `running` 但后台进程已退出（如崩溃、手动杀进程），超过 20 秒宽限期后界面会自动将其改判为 `error` 并解锁按钮，无需重启即可重跑——避免「永久转圈」卡死。
+
 ---
 
 ## 配置说明（要点）
@@ -123,13 +145,20 @@ BiliOpinion/
 │   └── steps/
 │       ├── step1_clean.py … step5_network.py   # 核心五步
 │       └── step6_bert_embed.py … step8_bert_sentiment.py  # 可选 BERT
+├── app/
+│   ├── home.py            # Streamlit 入口（四个标签页：配置/运行/报告/项目）
+│   ├── state.py           # 步骤状态读写 + 僵尸状态对账（running→error 自愈）
+│   ├── runner.py          # 后台子进程启动/探活/停止（跨平台脱离终端）
+│   └── viewer.py          # 步骤卡片、图表渲染
 ├── tools/
 │   ├── convert_legacy.py  # 旧格式爬虫数据 -> 本项目 schema
-│   └── smoke_test.py      # 小样本快速自检
+│   ├── smoke_test.py      # 小样本快速自检
+│   └── test_app.py        # Streamlit 前端无头自检（AppTest，15 项断言）
 ├── configs/example.yaml
 ├── docs/GET_COOKIE.md
 ├── requirements.txt
-└── run.py
+├── run.py                 # 命令行一键运行入口
+└── run_app.py             # Streamlit Web 界面启动器（--port/--headless）
 ```
 
 ### 复用已有数据

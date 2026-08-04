@@ -66,7 +66,7 @@ def _render_figures_only(project_name: str) -> None:
         cols = st.columns(cols_per_row)
         for j, p in enumerate(figs[i:i + cols_per_row]):
             with cols[j]:
-                st.image(str(p), caption=p.name, use_container_width=True)
+                st.image(str(p), caption=p.name, width='stretch')
 
 
 def _render_data_files(project_name: str) -> None:
@@ -87,7 +87,7 @@ def _render_data_files(project_name: str) -> None:
     try:
         if fp.suffix == ".csv":
             df = pd.read_csv(fp)
-            st.dataframe(df, use_container_width=True, height=400)
+            st.dataframe(df, width='stretch', height=400)
             st.download_button("下载 CSV", data=fp.read_bytes(),
                                 file_name=fp.name, mime="text/csv")
         elif fp.suffix == ".json":
@@ -184,18 +184,31 @@ def render_step_card(project_name: str, step: dict, cookie: str = "") -> None:
     # 按钮区 + 产出折叠
     btn_col, exp_col = st.columns([1, 3], gap="small")
     with btn_col:
-        col_run, col_rerun = st.columns(2, gap="small")
-        btn_disabled = (status == "running") or not can
-        with col_run:
-            if st.button("运行", key=f"run_{key}",
-                          disabled=btn_disabled,
-                          use_container_width=True, type="primary" if status == "pending" else "secondary"):
-                _launch(project_name, key, cookie)
-        with col_rerun:
-            if st.button("重跑", key=f"rerun_{key}",
-                          disabled=status == "running" or not can,
-                          use_container_width=True):
-                _launch(project_name, key, cookie, force=True)
+        if status == "running":
+            # 运行中只给「停止」，避免同一 step 起两个进程
+            if st.button("■ 停止", key=f"stop_{key}", width='stretch',
+                          help="终止该 step 的后台进程"):
+                from app import runner
+                killed = runner.stop_step(project_name, key)
+                st.toast("已停止" if killed else "进程已不在，状态已解锁", icon="⏹️")
+                st.rerun()
+        else:
+            col_run, col_rerun = st.columns(2, gap="small")
+            with col_run:
+                if st.button("运行", key=f"run_{key}", disabled=not can,
+                              width='stretch',
+                              type="primary" if status == "pending" else "secondary"):
+                    _launch(project_name, key, cookie)
+            with col_rerun:
+                if st.button("重跑", key=f"rerun_{key}", disabled=not can,
+                              width='stretch',
+                              help="忽略已有结果，重新执行这一步"):
+                    _launch(project_name, key, cookie, force=True)
+        if not can and status != "running":
+            deps = state.DEPENDS.get(key, [])
+            dep_names = "、".join(
+                next((s["name"] for s in state.STEPS if s["key"] == d), d) for d in deps)
+            st.caption(f"需先完成：{dep_names}")
 
     with exp_col:
         # 轻量：状态特定的错误提示内嵌在按钮行下方
@@ -242,12 +255,18 @@ def _safe_alive(project_name: str, step_key: str) -> bool:
 
 
 def _launch(project_name: str, step_key: str, cookie: str, force: bool = False) -> None:
-    """触发一个 step 在后台运行。"""
+    """触发一个 step 在后台运行。force=True 时先清掉上一轮产出记录。"""
     from app import runner
+    if force:
+        stale = state.state_dir(project_name) / f"{step_key}.result.json"
+        try:
+            stale.unlink(missing_ok=True)
+        except Exception:
+            pass
     try:
         pid = runner.run_step_in_background(project_name, step_key, cookie=cookie)
-        st.success(f"已启动 {step_key} (pid={pid})")
-        st.toast(f"{step_key} 已在后台启动", icon="🚀")
+        st.toast(f"{step_key} 已在后台启动 (pid={pid})", icon="🚀")
+        st.rerun()
     except Exception as e:
         st.error(f"启动失败: {e}")
 
@@ -276,7 +295,7 @@ def _render_step_outputs(project_name: str, step_key: str) -> None:
                         import json as _json
                         v = _json.dumps(v, ensure_ascii=False)
                     rows.append({"指标": k, "值": v})
-                st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+                st.dataframe(pd.DataFrame(rows), width='stretch', hide_index=True)
             else:
                 st.write(stats)
 
@@ -286,7 +305,7 @@ def _render_step_outputs(project_name: str, step_key: str) -> None:
                 p = Path(fig_path)
                 if p.exists():
                     st.image(str(p), caption=f"{fig_title} — {fig_caption}" if fig_caption else fig_title,
-                             use_container_width=True)
+                             width='stretch')
 
     if data_files:
         with st.expander(f"📁 数据文件 ({len(data_files)})"):
