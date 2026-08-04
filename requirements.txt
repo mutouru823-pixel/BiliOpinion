@@ -1,0 +1,18 @@
+# 核心依赖（必装）
+requests>=2.31
+pandas>=2.0
+numpy>=1.24
+matplotlib>=3.7
+jieba>=0.42
+scikit-learn>=1.3
+networkx>=3.1
+wordcloud>=1.8
+snownlp>=0.12
+pyyaml>=6.0
+
+# 可选：BERT 深度分析（cfg.bert.enabled=True 时才需要，体积较大）
+# torch>=2.1
+# transformers>=4.35
+
+# 可选：导出 docx 报告（cfg.report.docx=True 时才需要）
+# python-docx>=1.1

@@ -1,0 +1,144 @@
+# ============================================================
+# BiliOpinion 示例配置
+# 复制本文件为仓库根目录下的 config.yaml，按需修改即可。
+# 所有未填写的字段都会用 biliopinion/defaults.py 中的缺省值补齐，
+# 因此你通常只需要改 project.topic 与（二选一）Cookie。
+# ============================================================
+
+project:
+  name: "etui_auntie"        # 输出子目录名（英文/拼音，避免中文路径问题）
+  topic: "鹅腿阿姨"           # 想分析的舆情主题；留空则自动取 crawl.keywords[0]
+  output_dir: "outputs"       # 相对仓库根目录；最终产物在 outputs/<name>/
+
+crawl:
+  enabled: true               # false 时跳过采集（直接用 outputs/<name>/raw/ 里现成的数据）
+  keywords: ["鹅腿阿姨"]      # 搜索关键词；留空则自动用 project.topic
+  max_pages: 3                # 每个关键词翻几页搜索结果（每页约 20 个视频）
+  max_videos: 50              # 最多抓多少个视频的评论
+  order: "click"              # click 播放量 / pubdate 最新 / dm 弹幕 / stow 收藏
+  max_reply_pages: 0          # 二级评论最大页数，0 = 不限（穷尽）
+  request_delay: 0.5
+  reply_delay: 0.3
+  video_delay: 1.5
+  pubtime_begin: ""           # 可选，按视频发布时间过滤，如 "2023-01-01"
+  pubtime_end: ""
+  cookie: ""                  # 留空 → 读取环境变量 BILI_COOKIE 或 .env 的 BILI_COOKIE
+                              # （推荐写到 .env，勿提交到仓库）
+
+# ---------------- Step1 清洗 ----------------
+clean:
+  min_length: 1
+  strip_reply_prefix: true    # 去「回复 @xxx :」前缀，保留正文
+  strip_emote: true           # 去 [doge] 类表情
+  strip_url: true
+  drop_mojibake: true
+
+# ---------------- 传播阶段划分 ----------------
+# auto = 基于每日评论量自动断点检测（推荐，跨事件可比）
+# manual = 手工指定（见下方示例，取消注释并填入你事件的真实节点日期）
+phases:
+  mode: "auto"
+  manual: []                  # [{name: "P1启动期", end: "2025-11-06"}, ...]
+  auto:
+    start_ratio: 0.10
+    peak_ratio: 0.50
+    decay_ratio: 0.10
+    resurge_ratio: 0.20
+    min_gap_days: 2
+
+# ---------------- 核心短语 / 词云 ----------------
+# auto = 自动抽取；manual = 手写词典；hybrid = 二者合并
+phrases:
+  mode: "auto"
+  top_n: 24
+  min_len: 2
+  heatmap_top: 22
+  # 手写词典示例（mode 改为 manual/hybrid 后生效）：
+  # manual:
+  #   鹅腿: ["鹅腿", "烤鹅腿", "鸭腿"]
+  #   温情: ["温情", "感动", "双向奔赴"]
+
+# ---------------- 主题分析 ----------------
+topics:
+  mode: "auto"               # auto = 无监督 TF-IDF+SVD+KMeans 自动命名
+                             # codebook = 以下方编码手册做优先级规则分类（论文方法）
+  explore:
+    enabled: true
+    sample_size: 12000
+    k_range: [4, 9]
+    max_features: 8000
+    svd_components: 100
+  codebook:
+    order: []                 # 优先级，如 [A, D, E, B, C]
+    categories: {}           # 类别定义，见下方示例
+    fallback: "F"
+    fallback_name: "F无关信息"
+    short_to: ""             # 未命中且极短的评论归入哪类（论文里归纯互动，如 "C"）
+    short_maxlen: 15
+    # 编码手册示例（mode 改为 codebook 后填写）：
+    # categories:
+    #   A:
+    #     name: "A事件核心与考证"
+    #     keywords: ["鹅腿", "烤鹅腿", "阿姨", "北邮", "清华"]
+    #   D:
+    #     name: "D质疑与反思"
+    #     keywords: ["质疑", "炒作", "流量", "带节奏", "辟谣"]
+
+# ---------------- 情感与立场 ----------------
+sentiment:
+  enabled: true
+  engine: "snownlp"
+  pos_threshold: 0.6
+  neg_threshold: 0.4
+  max_chars: 200
+  stance:                    # 立场规则词典；enabled=false 时只做 SnowNLP 三分类
+    enabled: false
+    pos_name: "支持/采信"
+    neg_name: "质疑/反对"
+    pos_words: []             # 示例: ["实锤", "太像了", "确实是", "信了"]
+    neg_words: []             # 示例: ["造谣", "谣言", "辟谣", "不可能", "假的"]
+
+# ---------------- 社会网络 ----------------
+network:
+  enabled: true
+  top_videos: 10
+  viz_min_degree: 3
+  viz_max_nodes: 8000
+  path_sample: 300
+  cooccur_min: 30
+  export_gexf: true           # 导出全套 Gephi 资产：gephi_nodes/edges.csv、keyword_*.csv、networks/*.gexf
+  export_per_video: true      # 为每个热门视频单独导出一个 GEXF 子网络
+  per_video_top_n: 10         # 导出前 N 个视频的子网络
+
+# ---------------- BERT 深度分析（可选，默认关闭）----------------
+bert:
+  enabled: false              # 需先 pip install torch transformers
+  model: "hfl/chinese-bert-wwm-ext"
+  max_len: 64
+  batch_size: 64
+  quantize: true
+  max_samples: 0              # >0 时只向量化这么多条（省算力）；0 = 全量
+  topic:
+    enabled: true
+    pca_components: 48
+    k_range: [5, 13]
+    silhouette_sample: 20000
+    min_term_freq: 30
+  sentiment:
+    enabled: true
+    pos_pseudo: 0.85
+    neg_pseudo: 0.15
+    neu_pseudo: [0.45, 0.55]
+    max_per_class: 12000
+
+# ---------------- 报告 ----------------
+report:
+  html: true
+  docx: false                 # true 需 pip install python-docx
+  title: ""
+
+# ---------------- 运行环境 ----------------
+runtime:
+  font: ""                    # 中文字体 .ttf/.ttc 路径；留空自动探测
+  random_seed: 42
+  figure_dpi: 150
