@@ -17,6 +17,7 @@ def _writable_base() -> Path:
     Streamlit Cloud 上 /mount/src 是只读的，持久存储在 /mount/data。
     本地环境直接用 REPO_ROOT。
     """
+    import os
     cloud_data = Path("/mount/data")
     if cloud_data.exists() and os.access(cloud_data, os.W_OK):
         return cloud_data / "biliopinion"

@@ -461,7 +461,7 @@ def sidebar() -> None:
             _save_dotenv(cookie)
 
         st.markdown("")
-        from biliopinion.config import _writable_base as _wb
+        from app.paths import writable_base as _wb
         _wbase = _wb()
         st.caption(f"数据目录：{_wbase.name}/outputs/")
 
@@ -490,8 +490,8 @@ def _sidebar_kv(key: str, val: str) -> None:
 def _save_dotenv(cookie: str) -> None:
     """写入 .env（Streamlit Cloud 上只读会静默跳过）。"""
     try:
-        from biliopinion.config import _writable_base
-        env_file = _writable_base() / ".env"
+        from app.paths import writable_base
+        env_file = writable_base() / ".env"
         lines = []
         if env_file.exists():
             for line in env_file.read_text(encoding="utf-8").splitlines():
