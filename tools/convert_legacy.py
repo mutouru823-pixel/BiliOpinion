@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-将旧版「鹅腿阿姨」爬虫产出的数据转换为 BiliOpinion 新 schema。
+将旧版爬虫产出的数据（含中文表头 / 旧列名）转换为 BiliOpinion 新 schema。
 
 旧 comments.csv（无表头）:
   comment_id, bv, parent_id, level, user_mid, user_name, reply_to,

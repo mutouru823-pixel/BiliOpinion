@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-冒烟测试：把 raw/ 下数据抽样成小集合，用 config_validate.yaml 跑通整条管线，
-用于在上全量（~12 万条）之前快速暴露逻辑错误。
+冒烟测试：把 raw/ 下数据抽样成小集合，用 configs/example.yaml（复制为 config.yaml）跑通整条管线，
+用于在上全量之前快速暴露逻辑错误。
 
 用法:
   python tools/smoke_test.py <raw目录> <抽样条数>
 然后:
-  python run.py config_validate.yaml   （输出目录需指向抽样后的 raw）
+  python run.py config.yaml   （config.yaml 由 configs/example.yaml 复制而来，输出目录需指向抽样后的 raw）
 """
 from __future__ import annotations
 

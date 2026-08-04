@@ -6,13 +6,13 @@
 # ============================================================
 
 project:
-  name: "etui_auntie"        # 输出子目录名（英文/拼音，避免中文路径问题）
-  topic: "鹅腿阿姨"           # 想分析的舆情主题；留空则自动取 crawl.keywords[0]
+  name: "my_event"            # 输出子目录名（英文/拼音，避免中文路径问题）
+  topic: "某热点事件"         # 示例占位，请替换为你的主题；留空则自动取 crawl.keywords[0]
   output_dir: "outputs"       # 相对仓库根目录；最终产物在 outputs/<name>/
 
 crawl:
   enabled: true               # false 时跳过采集（直接用 outputs/<name>/raw/ 里现成的数据）
-  keywords: ["鹅腿阿姨"]      # 搜索关键词；留空则自动用 project.topic
+  keywords: ["某热点事件"]    # 搜索关键词；留空则自动用 project.topic
   max_pages: 3                # 每个关键词翻几页搜索结果（每页约 20 个视频）
   max_videos: 50              # 最多抓多少个视频的评论
   order: "click"              # click 播放量 / pubdate 最新 / dm 弹幕 / stow 收藏
@@ -55,8 +55,8 @@ phrases:
   heatmap_top: 22
   # 手写词典示例（mode 改为 manual/hybrid 后生效）：
   # manual:
-  #   鹅腿: ["鹅腿", "烤鹅腿", "鸭腿"]
-  #   温情: ["温情", "感动", "双向奔赴"]
+  #   阶段一: ["关键词1", "关键词2"]
+  #   阶段二: ["关键词3", "关键词4"]
 
 # ---------------- 主题分析 ----------------
 topics:
@@ -79,7 +79,7 @@ topics:
     # categories:
     #   A:
     #     name: "A事件核心与考证"
-    #     keywords: ["鹅腿", "烤鹅腿", "阿姨", "北邮", "清华"]
+    #     keywords: ["关键词1", "关键词2", "关键词3"]
     #   D:
     #     name: "D质疑与反思"
     #     keywords: ["质疑", "炒作", "流量", "带节奏", "辟谣"]

@@ -4,7 +4,7 @@
 DEFAULTS = {
     "project": {
         "name": "my_event",          # 输出子目录名，建议英文/拼音
-        "topic": "",                 # 事件主题，如 "鹅腿阿姨"；为空时取 crawl.keywords[0]
+        "topic": "",                 # 事件主题，如 "某热点事件"；为空时取 crawl.keywords[0]
         "output_dir": "outputs",     # 相对仓库根目录
     },
 
@@ -51,7 +51,7 @@ DEFAULTS = {
         "mode": "auto",              # auto 自动抽取 / manual 手工词典 / hybrid 两者合并
         "top_n": 24,                 # 自动模式抽取多少个核心短语
         "min_len": 2,
-        "manual": {},                # {"鹅腿": ["鹅腿","烤鹅腿"], "鸭腿": ["鸭腿"]}
+        "manual": {},                # {"阶段一": ["关键词1","关键词2"], "阶段二": ["关键词3"]}
         "heatmap_top": 22,
     },
 
