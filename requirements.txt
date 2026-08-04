@@ -16,3 +16,6 @@ pyyaml>=6.0
 
 # 可选：导出 docx 报告（cfg.report.docx=True 时才需要）
 # python-docx>=1.1
+
+# 可选：Streamlit 前端（python run_app.py 或 streamlit run app/app.py）
+streamlit>=1.30
