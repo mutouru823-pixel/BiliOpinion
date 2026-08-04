@@ -1,0 +1,22 @@
+# BiliOpinion Streamlit 主题 — Modern Minimal (Linear/Notion 式)
+# 颜色 + 字体定义在主题层，细调通过 app/home.py 的 <style> 注入
+[server]
+enableXsrfProtection = false
+enableCORS = false
+headless = true
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+# 主色（Linear 式靛蓝）
+primaryColor = "#4F46E5"
+# 内容区背景（接近纯白，柔和分层用）
+backgroundColor = "#FAFAFB"
+# 控件/侧边栏背景
+secondaryBackgroundColor = "#FFFFFF"
+# 主文字
+textColor = "#111827"
+# 字体：优先苹方/SF → YaHei → 系统默认 sans-serif
+font = "sans serif"
