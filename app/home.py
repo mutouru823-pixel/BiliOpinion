@@ -461,7 +461,9 @@ def sidebar() -> None:
             _save_dotenv(cookie)
 
         st.markdown("")
-        st.caption(f"仓库根：`{_repo.name}`")
+        from biliopinion.config import _writable_base as _wb
+        _wbase = _wb()
+        st.caption(f"数据目录：{_wbase.name}/outputs/")
 
 
 def _sidebar_group(title: str) -> None:
@@ -486,16 +488,21 @@ def _sidebar_kv(key: str, val: str) -> None:
 
 
 def _save_dotenv(cookie: str) -> None:
-    env_file = _repo / ".env"
-    lines = []
-    if env_file.exists():
-        for line in env_file.read_text(encoding="utf-8").splitlines():
-            if not line.startswith("BILI_COOKIE="):
-                lines.append(line)
-    if cookie:
-        lines.append(f"BILI_COOKIE={cookie}")
-    env_file.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
-    st.success(f"已写入 .env", icon="✅")
+    """写入 .env（Streamlit Cloud 上只读会静默跳过）。"""
+    try:
+        from biliopinion.config import _writable_base
+        env_file = _writable_base() / ".env"
+        lines = []
+        if env_file.exists():
+            for line in env_file.read_text(encoding="utf-8").splitlines():
+                if not line.startswith("BILI_COOKIE="):
+                    lines.append(line)
+        if cookie:
+            lines.append(f"BILI_COOKIE={cookie}")
+        env_file.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        st.success("已写入 .env", icon="✅")
+    except Exception as e:
+        st.warning(f"写入 .env 失败（可在 Streamlit Secrets 中配置 BILI_COOKIE）: {e}", icon="⚠️")
 
 
 # ----------------------------------------------------------------------
@@ -581,7 +588,7 @@ def _tab_config(project_name: str) -> None:
             pass
 
     # 模式切换：st.segmented 风格（用 radio + 容器模拟）
-    head_c1, head_c2 = st.columns([4, 1.6], gap="large", vertical_alignment="bottom")
+    head_c1, head_c2 = st.columns([4, 1.6], gap="large")
     with head_c2:
         mode = st.radio(
             "编辑模式",

@@ -11,6 +11,18 @@ from .defaults import DEFAULTS
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
+def _writable_base() -> Path:
+    """返回可写的根目录。
+
+    Streamlit Cloud 上 /mount/src 是只读的，持久存储在 /mount/data。
+    本地环境直接用 REPO_ROOT。
+    """
+    cloud_data = Path("/mount/data")
+    if cloud_data.exists() and os.access(cloud_data, os.W_OK):
+        return cloud_data / "biliopinion"
+    return REPO_ROOT
+
+
 def _deep_merge(base: dict, override: dict) -> dict:
     """递归合并；override 中的 None 视为未设置。"""
     out = copy.deepcopy(base)
@@ -101,7 +113,7 @@ def load_config(path: str | os.PathLike) -> Config:
     # ---- 路径 ----
     out_dir = Path(proj["output_dir"])
     if not out_dir.is_absolute():
-        out_dir = REPO_ROOT / out_dir
+        out_dir = _writable_base() / out_dir
     out_root = out_dir / proj["name"]
     paths = {
         "repo": str(REPO_ROOT),

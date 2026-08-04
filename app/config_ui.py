@@ -368,13 +368,14 @@ def save_config(cfg: dict, project_name: str, cookie: str = "") -> Path:
     实际运行时通过 --cookie 参数从环境变量注入。
     """
     import copy
+    from biliopinion.config import _writable_base
     out = copy.deepcopy(cfg)
     # 确保 project.name 一致
     out.setdefault("project", {})["name"] = project_name
     # 不持久化 cookie
     out.setdefault("crawl", {})["cookie"] = ""
 
-    target = (REPO_ROOT / "outputs" / project_name / ".state" / "config.yaml")
+    target = (_writable_base() / "outputs" / project_name / ".state" / "config.yaml")
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(yaml.safe_dump(out, allow_unicode=True, sort_keys=False),
                        encoding="utf-8")

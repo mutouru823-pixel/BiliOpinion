@@ -58,8 +58,14 @@ def set_current_project(name: str) -> None:
 
 def project_root(name: str) -> Path:
     """项目输出根目录 outputs/<name>。"""
-    from biliopinion.config import REPO_ROOT
-    return (REPO_ROOT / "outputs" / name).resolve()
+    from biliopinion.config import _writable_base
+    return (_writable_base() / "outputs" / name).resolve()
+
+
+def _writable_base() -> Path:
+    """可写根目录（与 config.py 保持一致）。"""
+    from biliopinion.config import _writable_base as _wb
+    return _wb()
 
 
 def state_dir(name: str) -> Path:
@@ -133,8 +139,8 @@ def can_run(name: str, step_key: str) -> bool:
 # ----------------------------------------------------------------------
 def list_projects() -> list[str]:
     """扫描 outputs/ 下所有项目目录。"""
-    from biliopinion.config import REPO_ROOT
-    out_dir = (REPO_ROOT / "outputs").resolve()
+    from biliopinion.config import _writable_base
+    out_dir = (_writable_base() / "outputs").resolve()
     if not out_dir.exists():
         return []
     names = []
