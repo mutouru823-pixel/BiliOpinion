@@ -36,8 +36,6 @@ def main() -> int:
     cmd = [sys.executable, "-m", "streamlit", "run", str(app_py),
            f"--server.headless={'true' if args.headless else 'false'}",
            f"--server.port={args.port}",
-           "--server.enableXsrfProtection=false",
-           "--server.enableCORS=false",
            "--browser.gatherUsageStats=false"]
     print(f"启动中… 浏览器打开 http://localhost:{args.port}")
     try:

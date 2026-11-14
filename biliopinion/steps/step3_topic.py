@@ -36,9 +36,9 @@ def _tok(t):
             if len(w) > 1 and w not in STOP and not re.match(r"^[\d\W]+$", w)]
 
 
-def _core_window(df, daily):
+def _core_window(df, daily, decay_ratio: float = 0.10):
     peak_v = daily.max()
-    active = daily[daily >= peak_v * 0.10]
+    active = daily[daily >= peak_v * decay_ratio]
     if len(active) >= 2:
         return active.index.min(), active.index.max()
     return daily.index.min(), daily.index.max()
@@ -49,6 +49,9 @@ def run(cfg) -> dict:
     setup_matplotlib(cfg)
     df = robust_read_csv(out / "comments_valid.csv", parse_dates=["created_at"], low_memory=False)
     df["date"] = df["created_at"].dt.date
+    # 核心窗口衰减阈值：优先读 phases.auto.decay_ratio，回退到 0.10
+    _decay = cfg.get("phases", {}).get("auto", {}).get("decay_ratio", 0.10) \
+        if hasattr(cfg, "get") else 0.10
     if "phase" not in df.columns:
         _, df = compute_phases(cfg, df)
     df["text_clean"] = df["text_clean"].astype(str)
@@ -170,7 +173,7 @@ def run(cfg) -> dict:
 
     # ---------- 图4 主题时间演化（堆叠面积，核心窗口）----------
     daily = df.groupby("date").size()
-    cs, ce = _core_window(df, daily)
+    cs, ce = _core_window(df, daily, _decay)
     core = df[(df["created_at"] >= pd.Timestamp(cs)) & (df["created_at"] <= pd.Timestamp(ce))]
     pv = core.pivot_table(index="date", columns="topic_name", values="comment_id", aggfunc="count").fillna(0)
     pv = pv.reindex(columns=topic_order).fillna(0)
@@ -218,7 +221,7 @@ def run(cfg) -> dict:
     plt.tight_layout(); savefig(fig_, fig6)
 
     # ---------- 图7 爆发期评论时段热力图（小时 × 日期）----------
-    bs, be = _core_window(df, daily)
+    bs, be = _core_window(df, daily, _decay)
     sub = df[(df["created_at"] >= pd.Timestamp(bs)) & (df["created_at"] <= pd.Timestamp(be))].copy()
     sub["hour"] = sub["created_at"].dt.hour
     hm = sub.pivot_table(index="hour", columns="date", values="comment_id", aggfunc="count").fillna(0)

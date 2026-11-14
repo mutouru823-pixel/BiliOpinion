@@ -12,16 +12,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def _writable_base() -> Path:
-    """返回可写的根目录。
-
-    Streamlit Cloud 上 /mount/src 是只读的，持久存储在 /mount/data。
-    本地环境直接用 REPO_ROOT。
-    """
-    import os
-    cloud_data = Path("/mount/data")
-    if cloud_data.exists() and os.access(cloud_data, os.W_OK):
-        return cloud_data / "biliopinion"
-    return REPO_ROOT
+    """返回可写的根目录。代理 app.paths.writable_base()，避免重复实现。"""
+    from app.paths import writable_base as _wb
+    return _wb()
 
 
 def _deep_merge(base: dict, override: dict) -> dict:

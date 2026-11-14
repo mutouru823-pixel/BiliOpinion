@@ -3,13 +3,14 @@
 
 两种调用方式：
 1. 作为子进程 CLI（被 app.py 通过 subprocess 启动）：
-   python -m app.runner <step_key> <config.yaml> [--cookie <cookie>]
+   python -m app.runner <step_key> <config.yaml>
+   Cookie 通过父进程环境变量 BILI_COOKIE 注入（不通过命令行，避免 ps 泄露）。
 
 2. 直接被前端 import 调用 run_step_in_background() 启动子进程。
 
 runner 本身负责：
 - 加载 config（与 biliopinion.config.load_config 等价）
-- 注入 cookie（从命令行参数或环境变量）
+- 注入 cookie（从环境变量 BILI_COOKIE，不在命令行明文传递）
 - 调用对应 step 的 run(cfg)
 - 在 .state/<step>.json 写 status / started_at / finished_at / error
 - stdout+stderr 全量写入 .state/<step>.log
@@ -126,20 +127,15 @@ def _collect_results(cfg) -> list[dict]:
 # ----------------------------------------------------------------------
 def main_cli() -> int:
     if len(sys.argv) < 3:
-        print("用法: python -m app.runner <step_key> <config.yaml> [--cookie <cookie>]",
+        print("用法: python -m app.runner <step_key> <config.yaml>",
+              file=sys.stderr)
+        print("Cookie 通过环境变量 BILI_COOKIE 传入（不在命令行明文暴露）。",
               file=sys.stderr)
         return 2
     step_key = sys.argv[1]
     config_file = sys.argv[2]
-    cookie = ""
-    if "--cookie" in sys.argv:
-        i = sys.argv.index("--cookie")
-        if i + 1 < len(sys.argv):
-            cookie = sys.argv[i + 1]
-
-    # 注入 cookie 到环境变量，load_config 会读取
-    if cookie:
-        os.environ["BILI_COOKIE"] = cookie
+    # Cookie 只从环境变量读取，禁止命令行传递（防止 ps aux 泄露）
+    # biliopinion.config.load_config 会自动从 os.environ["BILI_COOKIE"] 读取
 
     # 找到项目名（从 config 文件路径推断）
     # config 文件位于 outputs/<name>/.state/config.yaml
@@ -280,6 +276,9 @@ def run_step_in_background(project_name: str, step_key: str, cookie: str = "") -
 
     子进程与 Streamlit 主进程解耦：关掉页面、甚至重启 Streamlit，
     正在跑的采集/分析都不会被带走。
+
+    Cookie 通过环境变量 BILI_COOKIE 注入子进程，
+    不经过命令行参数（防止 ps aux / proc 泄露）。
     """
     import subprocess
 
@@ -288,14 +287,18 @@ def run_step_in_background(project_name: str, step_key: str, cookie: str = "") -
         raise FileNotFoundError(f"项目 config 不存在: {cfg_file}。请先在「配置」Tab 保存。")
 
     cmd = [sys.executable, "-m", "app.runner", step_key, str(cfg_file)]
+
+    # 继承父进程环境 + 注入 Cookie（如有）
+    env = os.environ.copy()
     if cookie:
-        cmd += ["--cookie", cookie]
+        env["BILI_COOKIE"] = cookie
 
     kwargs: dict = {
         "cwd": str(REPO_ROOT),
         "stdout": subprocess.DEVNULL,
         "stderr": subprocess.DEVNULL,
         "stdin": subprocess.DEVNULL,
+        "env": env,
     }
     if os.name == "nt":
         # start_new_session 在 Windows 上是空操作，必须用 creationflags

@@ -9,11 +9,15 @@ import os
 from pathlib import Path
 
 
+CLOUD_DATA_DIR = Path("/mount/data")
+
+
 def writable_base() -> Path:
-    """返回可写的根目录。"""
-    # Streamlit Cloud 持久存储
-    cloud_data = Path("/mount/data")
-    if cloud_data.exists() and os.access(cloud_data, os.W_OK):
-        return cloud_data / "biliopinion"
-    # 本地开发
+    """返回可写的根目录。
+
+    Streamlit Cloud 上 /mount/src 是只读的，持久存储在 /mount/data。
+    本地环境直接用项目根目录。
+    """
+    if CLOUD_DATA_DIR.exists() and os.access(CLOUD_DATA_DIR, os.W_OK):
+        return CLOUD_DATA_DIR / "biliopinion"
     return Path(__file__).resolve().parent.parent
